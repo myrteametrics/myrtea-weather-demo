@@ -1,5 +1,5 @@
 NAMESPACE = myrtea
-APP = holfuy-connector
+APP = weather-connector
 GOOS ?= linux
 TAG ?= demo
 BUILD ?= 0
@@ -28,3 +28,11 @@ docker-build-local:
 .PHONY: docker-push ## Push the docker image to hub.docker.com
 docker-push:
 	docker push $(DOCKER_IMAGE)
+
+.PHONY: deploy
+deploy: ## Run the docker-compose 
+	docker-compose -f docker-compose.yml up
+
+.PHONY: undeploy
+undeploy:
+	docker-compose -f docker-compose.yml down

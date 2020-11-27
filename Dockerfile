@@ -9,6 +9,6 @@ USER myrtea
 
 WORKDIR /app
 
-COPY bin/myrtea-holfuy-connector myrtea-holfuy-connector
+COPY bin/myrtea-weather-connector myrtea-weather-connector
 
-ENTRYPOINT ["./myrtea-holfuy-connector"]
+ENTRYPOINT ["./myrtea-weather-connector"]
