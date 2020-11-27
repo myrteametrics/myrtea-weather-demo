@@ -1,0 +1,15 @@
+apiVersion: 1
+datasources:
+- orgId: 1
+  version: 2
+  name: PostgreSQL
+  type: postgres
+  access: proxy
+  user: postgres
+  database: postgres
+  isDefault: true
+  jsonData:
+    postgresVersion: 903
+    sslmode: disable
+  secureJsonData:
+    password: postgres

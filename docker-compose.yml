@@ -1,0 +1,276 @@
+# Elasticsearch require : sudo sysctl -w vm.max_map_count=26214 (or update of /etc/sysctl.conf)
+
+version: '2.1'
+
+services:
+  myrtea-postgresql:
+    network_mode: host
+    image: postgres:11-alpine
+    container_name: myrtea-demo-postgresql
+    ports:
+      - 5432:5432
+    environment:
+      POSTGRES_DB: postgres
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+
+    volumes:
+      ## CONFIG
+      - ./postgres/db.sql:/docker-entrypoint-initdb.d/db.sql
+
+  
+
+  myrtea-elasticsearch:
+    network_mode: host
+    image: docker.elastic.co/elasticsearch/elasticsearch:6.7.0
+    container_name: myrtea-demo-elasticsearch
+    environment:
+      - discovery.type=single-node
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    ports:
+      - 9200:9200
+      - 9300:9300
+
+  myrtea-kibana:
+    network_mode: host
+    image: docker.elastic.co/kibana/kibana:6.7.0
+    container_name: myrtea-demo-kibana
+    environment:
+      - ELASTICSEARCH_HOSTS=http://localhost:9200
+    ports:
+      - 5601:5601
+
+  wait:
+    image: dokku/wait
+    depends_on: 
+      - myrtea-postgresql
+      - myrtea-elasticsearch
+      - myrtea-kibana
+
+
+  myrtea-ingester-api:
+    network_mode: host
+    image: github.com/myrteametrics/myrtea-ingester-api:demo
+    container_name: myrtea-demo-ingester-api
+    ports:
+      - 9001:9001
+    depends_on: 
+      - wait
+    environment:
+      # Enable or disable debug mode
+      # Debug mode print all configuration variables when the binary start
+      # WARNING: every single variable will be printed, including password or sensitive data
+      # Default value: "false"
+      MYRTEA_DEBUG_MODE: "false"
+
+      # Specify the server running port. API (including swagger) will be reachable through this port
+      # Default value: "9001"
+      MYRTEA_SERVER_PORT: "9001"
+
+      # Enable or disable TLS and HTTPS server security (false = HTTPS / true = HTTP)
+      # If SERVER_ENABLE_TLS = true, SERVER_SSL_FILE_CRT and SERVER_SSL_FILE_KEY must be specified
+      # Default value: "false"
+      MYRTEA_SERVER_ENABLE_TLS: "false"
+
+      # TLS certificate file path
+      # Default value: "certs/server.rsa.crt"
+      MYRTEA_SERVER_TLS_FILE_CRT: "certs/server.rsa.crt"
+
+      # TLS private key file path
+      # Default value: "certs/server.rsa.key"
+      MYRTEA_SERVER_TLS_FILE_KEY: "certs/server.rsa.key"
+
+      # Enable or Disable CORS policy on the API
+      # See https://enable-cors.org/
+      # Default value: "false"
+      MYRTEA_API_ENABLE_CORS: "true"
+
+      # Enable or Disable API security
+      # If unsecured = false, a valid JWT (JSON Web Token) is required to access the API
+      # This JWT is delivered using the /login endpoint (which required a login and a password)
+      # If API_ENABLE_SECURITY = false, no JWT is required and all endpoints can be called freely
+      # Default value: "true"
+      MYRTEA_API_ENABLE_SECURITY: "false"
+
+      # Enable or Disable API Gateway mode
+      # If API_ENABLE_GATEWAY_MODE = true, the API will still required a JWT but no validation will be done on this JWT
+      # Be aware that in gateway mode, every JWT MUST have been validated by another layer of security (in this case, an API Gateway using the auth-api)
+      # The auth-api will be responsible to deliver the tokens (/login) and to validate the tokens (/validate)
+      # Default value: "false"
+      MYRTEA_API_ENABLE_GATEWAY_MODE: "true"
+
+      # Specify the instance name
+      # The instance name must be the same in every components in the stack to ensure proper working conditions
+      # Default value: "myrtea"
+      MYRTEA_INSTANCE_NAME: "myrtea"
+
+      # Specify the hostname used to access the swagger UI
+      # If not set (or incorrect), the swagger UI will be available but will not be usable (using execute on endpoints)
+      # Default value: "localhost:9001"
+      MYRTEA_SWAGGER_HOST: "localhost:9001"
+
+      # Specify the elasticsearch URLS
+      # Array of URLS might not work using environment variable (should be fixed soon)
+      # Default value: "http://localhost:9200"
+      MYRTEA_ELASTICSEARCH_URLS: "http://localhost:9200"
+
+      # Specify the maximum number of concurrent worker by type of ingested document (1 type of document = n workers)
+      # Default value: 2
+      MYRTEA_INGESTER_MAXIMUM_WORKERS: "2"
+
+      # Specify the workers maximum buffer size before document flushing to elasticsearch
+      # Default value: 2000
+      MYRTEA_WORKER_MAXIMUM_BUFFER_SIZE: "2000"
+
+      # Specify the timeout before document flushing to elasticsearch (in seconds)
+      # Default value: 10
+      MYRTEA_WORKER_FORCE_FLUSH_TIMEOUT_SEC: "10"
+
+      # Enable dry run mode for elasticsearch
+      # If DEBUG_DRY_RUN_ELASTICSEARCH = true, no interaction will be done with elasticsearch (no enrichment and no document post)
+      # Default value: false
+      MYRTEA_DEBUG_DRY_RUN_ELASTICSEARCH: "false"
+
+  myrtea-engine-api:
+    network_mode: host
+    image: github.com/myrteametrics/myrtea-engine-api:demo
+    container_name: myrtea-demo-engine-api
+    ports:
+      - 9000:9000
+    depends_on: 
+        - wait
+    environment:
+      # Enable or disable debug mode
+      # Debug mode print all configuration variables when the binary start
+      # WARNING: every single variable will be printed, including password or sensitive data
+      # Default value: "false"
+      MYRTEA_DEBUG_MODE: "false"
+
+      # Specify the server running port. API (including swagger) will be reachable through this port
+      # Default value: "9000"
+      MYRTEA_SERVER_PORT: "9000"
+
+      # Enable or disable TLS and HTTPS server security (false = HTTPS / true = HTTP)
+      # If SERVER_ENABLE_TLS = true, SERVER_SSL_FILE_CRT and SERVER_SSL_FILE_KEY must be specified
+      # Default value: "false"
+      MYRTEA_SERVER_ENABLE_TLS: "false"
+
+      # TLS certificate file path
+      # Default value: "certs/server.rsa.crt"
+      MYRTEA_SERVER_TLS_FILE_CRT: "certs/server.rsa.crt"
+
+      # TLS private key file path
+      # Default value: "certs/server.rsa.key"
+      MYRTEA_SERVER_TLS_FILE_KEY: "certs/server.rsa.key"
+
+      # Enable or Disable CORS policy on the API
+      # See https://enable-cors.org/
+      # Default value: "false"
+      MYRTEA_API_ENABLE_CORS: "true"
+
+      # Enable or Disable API security
+      # If unsecured = false, a valid JWT (JSON Web Token) is required to access the API
+      # This JWT is delivered using the /login endpoint (which required a login and a password)
+      # If API_ENABLE_SECURITY = false, no JWT is required and all endpoints can be called freely
+      # Default value: "true"
+      MYRTEA_API_ENABLE_SECURITY: "true"
+
+      # Enable or Disable API Gateway mode
+      # If API_ENABLE_GATEWAY_MODE = true, the API will still required a JWT but no validation will be done on this JWT
+      # Be aware that in gateway mode, every JWT MUST have been validated by another layer of security (in this case, an API Gateway using the auth-api)
+      # The auth-api will be responsible to deliver the tokens (/login) and to validate the tokens (/validate)
+      # Default value: "false"
+      MYRTEA_API_ENABLE_GATEWAY_MODE: "true"
+
+      # Specify the instance name
+      # The instance name must be the same in every components in the stack to ensure proper working conditions
+      # Default value: "myrtea"
+      MYRTEA_INSTANCE_NAME: "myrtea"
+
+      # Specify the hostname used to access the swagger UI
+      # If not set (or incorrect), the swagger UI will be available but will not be usable (using execute on endpoints)
+      # Default value: "localhost:9000"
+      MYRTEA_SWAGGER_HOST: "localhost:9000"
+
+      # Specify the elasticsearch URLS
+      # Array of URLS might not work using environment variable (should be fixed soon)
+      # Default value: "http://localhost:9200"
+      MYRTEA_ELASTICSEARCH_URLS: "http://localhost:9200"
+
+      # Specify the postgresql host name
+      # Default value: "localhost"
+      #MYRTEA_POSTGRESQL_HOSTNAME: "myrtea-v4-${MYRTEA_ENV}-postgresql"
+      MYRTEA_POSTGRESQL_HOSTNAME: localhost
+
+      # Specify the postgresql port
+      # Default value: "5432"
+      MYRTEA_POSTGRESQL_PORT: "5432"
+
+      # Specify the postgresql database name
+      # Default value: "postgres"
+      MYRTEA_POSTGRESQL_DBNAME: "postgres"
+
+      # Specify the postgresql user name
+      # Default value: "postgres"
+      MYRTEA_POSTGRESQL_USERNAME: "postgres"
+
+      # Specify the postgresql user password
+      # Default value: "postgres"
+      MYRTEA_POSTGRESQL_PASSWORD: "postgres"
+
+      # Specify the postgresql connection pool maximum open connection
+      # Default value: "6"
+      MYRTEA_POSTGRESQL_CONN_POOL_MAX_OPEN: "6"
+
+      # Specify the postgresql connection pool maximum idle connection
+      # Default value: "3"
+      MYRTEA_POSTGRESQL_CONN_POOL_MAX_IDLE: "3"
+
+      # Specify the postgresql connection pool maximum idle connection
+      # Expressed as a Golang duration
+      # Default value: "0"
+      MYRTEA_POSTGRESQL_CONN_MAX_LIFETIME: "0"
+
+      # Enable or disable crons automation on API start
+      # Warning: Keep this parameter to "true" in production to ensure proper rotation even after a restart
+      # Default value: "true"
+      MYRTEA_ENABLE_CRONS_ON_START: "true"
+
+  myrtea-web-interface:
+    network_mode: host
+    image: github.com/myrteametrics/myrtea-settings-webapp:demo
+    container_name: myrtea-demo-web-interface
+    ports:
+      - 8080:8080
+    volumes:
+      - ./web-interface/default.conf:/etc/nginx/conf.d/default.conf
+    depends_on: 
+        - wait
+
+  myrtea-connector:
+    network_mode: host
+    image: github.com/myrteametrics/myrtea-connector:demo
+    container_name: myrtea-demo-connector
+    depends_on: 
+        - wait
+
+
+  myrtea-grafana:
+    network_mode: host
+    image: grafana/grafana
+    container_name: myrtea-demo-grafana
+    ports:
+      - 3000:3000
+    depends_on: 
+        - wait
+    environment:
+      GF_AUTH_DISABLE_LOGIN_FORM: "true"
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: "Admin"
+
+    volumes:
+      ## CONFIG
+      - ./grafana/provisioning:/etc/grafana/provisioning
