@@ -241,7 +241,7 @@ services:
 
   myrtea-web-interface:
     network_mode: host
-    image: github.com/myrteametrics/myrtea-settings-webapp:demo
+    image: docker.pkg.github.com/myrteametrics/myrtea-settings-webapp/myrtea-settings-webapp:demo
     container_name: myrtea-demo-web-interface
     ports:
       - 8080:8080
